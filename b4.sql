@@ -167,38 +167,56 @@ INSERT INTO Wallets (patient_id, balance, status) VALUES
 (2, 50000.00, 'Active'),     -- Test Case 3: Cháy ví (Chỉ có 50k, không đủ khám 200k)
 (3, 1000000.00, 'Inactive'); -- Test Case 2: Nhiều tiền nhưng thẻ bị khóa
 
-
 DELIMITER $$
 
-create procedure GetPatientDebt (
-	in keyword varchar(100),
-    out total_due decimal(10,2),
-    out message_error varchar(100)
+CREATE PROCEDURE GetPatientDebt (
+    IN keyword VARCHAR(100),
+    OUT total_due DECIMAL(10,2),
+    OUT message_error VARCHAR(100)
 )
 
-begin
+BEGIN
 
--- khai báo các biến cần thiết 
-	declare keyword_search varchar(100);
+    -- Kiểm tra dữ liệu nhập
+    IF keyword IS NULL OR keyword = '' THEN
     
-    -- Kiểm tra dữ liệu người dùng nhập vào 
-    if (keyword is null)
-		then set message_error = 'Không được phép để trống';
+        SET total_due = 0;
+        SET message_error = 'Khong duoc phep de trong';
     
-    else
+    ELSE
     
-	select *
-	from Patient_Invoices pi
-	join Patients p
-	on pi.patient_id = p.patient_id
-	WHERE p.patient_id LIKE CONCAT(keyword, '%') OR p.phone LIKE CONCAT(keyword, '%');
-    end if;
-end $$
-
+        SELECT pi.total_due
+        INTO total_due
+        FROM Patient_Invoices pi
+        JOIN Patients p ON pi.patient_id = p.patient_id
+        WHERE p.patient_id = keyword OR p.phone = keyword
+        LIMIT 1;
+        
+        -- Không tìm thấy
+        IF total_due IS NULL THEN
+            SET total_due = 0;
+            SET message_error = 'Khong tim thay benh nhan';
+        ELSE
+            SET message_error = 'Tra cuu thanh cong';
+        END IF;        
+    END IF;
+END $$
 DELIMITER ;
+-- Tra theo ID
+CALL GetPatientDebt('1', @debt, @msg);
 
-call GetPatientDebt();
+SELECT @debt, @msg;
+-- Tra theo Phone
+CALL GetPatientDebt('0901111222', @debt, @msg);
 
+SELECT @debt, @msg;
+CALL GetPatientDebt(NULL, @debt, @msg);
+
+SELECT @debt, @msg;
+-- Không tồn tại
+CALL GetPatientDebt('999', @debt, @msg);
+
+SELECT @debt, @msg;
 
 
 
